@@ -38,11 +38,13 @@ app.get('*', (req, res) => {
     }
 });
 
+// Export app for Vercel
+module.exports = app;
+
 if (process.env.NODE_ENV !== 'production') {
+    const PORT = process.env.PORT || 3001;
     app.listen(PORT, () => {
         console.log(`🚔 Serveur Intranet Police Nationale démarré sur http://localhost:${PORT}`);
         console.log('⚡ Connecté à Supabase');
     });
 }
-
-module.exports = app;
