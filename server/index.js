@@ -38,7 +38,11 @@ app.get('*', (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`🚔 Serveur Intranet Police Nationale démarré sur http://localhost:${PORT}`);
-    console.log('⚡ Connecté à Supabase');
-});
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => {
+        console.log(`🚔 Serveur Intranet Police Nationale démarré sur http://localhost:${PORT}`);
+        console.log('⚡ Connecté à Supabase');
+    });
+}
+
+module.exports = app;
