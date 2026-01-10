@@ -29,12 +29,12 @@ app.get('/api/health', async (req, res) => {
 });
 
 // Serve static files in production
-app.use(express.static(path.join(__dirname, '../client/dist')));
+app.use(express.static(path.join(__dirname, '../dist')));
 
 // Handle React routing in production
 app.get('*', (req, res) => {
     if (!req.path.startsWith('/api')) {
-        res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+        res.sendFile(path.join(__dirname, '../dist/index.html'));
     }
 });
 
