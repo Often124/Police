@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { initDatabase } = require('./db/database');
+const supabase = require('./db/supabase');
 
 const authRoutes = require('./routes/auth');
 const amendesRoutes = require('./routes/amendes');
@@ -21,6 +21,13 @@ app.use('/api/amendes', amendesRoutes);
 app.use('/api/rapports', rapportsRoutes);
 app.use('/api/users', usersRoutes);
 
+// Health check Supabase
+app.get('/api/health', async (req, res) => {
+    const { error } = await supabase.from('amendes').select('count', { count: 'exact', head: true });
+    if (error) return res.status(500).json({ status: 'error', message: error.message });
+    res.json({ status: 'ok', database: 'connected' });
+});
+
 // Serve static files in production
 app.use(express.static(path.join(__dirname, '../client/dist')));
 
@@ -31,19 +38,7 @@ app.get('*', (req, res) => {
     }
 });
 
-// Initialiser la base de données puis démarrer le serveur
-async function start() {
-    try {
-        await initDatabase();
-        console.log('📦 Base de données initialisée');
-
-        app.listen(PORT, () => {
-            console.log(`🚔 Serveur Intranet Police Nationale démarré sur http://localhost:${PORT}`);
-        });
-    } catch (error) {
-        console.error('❌ Erreur au démarrage:', error);
-        process.exit(1);
-    }
-}
-
-start();
+app.listen(PORT, () => {
+    console.log(`🚔 Serveur Intranet Police Nationale démarré sur http://localhost:${PORT}`);
+    console.log('⚡ Connecté à Supabase');
+});
