@@ -13,14 +13,12 @@ function NouveauRapport() {
     const [formData, setFormData] = useState({
         citoyen_nom: '',
         citoyen_prenom: '',
-        amende_id: '',
-        montant_applique: '',
         lieu: '',
         est_recidive: false,
         description: ''
     });
 
-    const [selectedAmende, setSelectedAmende] = useState(null);
+    const [selectedAmendes, setSelectedAmendes] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [searchAmende, setSearchAmende] = useState('');
 
@@ -65,27 +63,32 @@ function NouveauRapport() {
         }));
     };
 
-    const selectAmende = (amende) => {
-        setSelectedAmende(amende);
-        setFormData(prev => ({
-            ...prev,
-            amende_id: amende.id,
-            montant_applique: prev.est_recidive && amende.recidive !== 'Non applicable'
-                ? amende.recidive.split('+')[0].trim()
-                : amende.montant
-        }));
+    const toggleAmende = (amende) => {
+        setSelectedAmendes(prev => {
+            const exists = prev.find(a => a.id === amende.id);
+            if (exists) {
+                return prev.filter(a => a.id !== amende.id);
+            } else {
+                return [...prev, amende];
+            }
+        });
     };
 
-    useEffect(() => {
-        if (selectedAmende) {
-            setFormData(prev => ({
-                ...prev,
-                montant_applique: prev.est_recidive && selectedAmende.recidive !== 'Non applicable'
-                    ? selectedAmende.recidive.split('+')[0].trim()
-                    : selectedAmende.montant
-            }));
-        }
-    }, [formData.est_recidive, selectedAmende]);
+    const removeAmende = (amendeId) => {
+        setSelectedAmendes(prev => prev.filter(a => a.id !== amendeId));
+    };
+
+    const calculateTotal = () => {
+        let total = 0;
+        selectedAmendes.forEach(amende => {
+            const montantStr = formData.est_recidive && amende.recidive !== 'Non applicable'
+                ? amende.recidive
+                : amende.montant;
+            const montant = parseInt(montantStr?.replace(/[^0-9]/g, '') || '0');
+            total += montant;
+        });
+        return total;
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -94,6 +97,16 @@ function NouveauRapport() {
 
         const token = localStorage.getItem('token');
 
+        // Construire la description avec toutes les infractions
+        const infractionsText = selectedAmendes.map(a => {
+            const montant = formData.est_recidive && a.recidive !== 'Non applicable' ? a.recidive : a.montant;
+            return `- ${a.infraction} (${montant})`;
+        }).join('\n');
+
+        const fullDescription = selectedAmendes.length > 0
+            ? `INFRACTIONS COMMISES:\n${infractionsText}\n\n${formData.description}`
+            : formData.description;
+
         try {
             const response = await fetch('/api/rapports', {
                 method: 'POST',
@@ -101,7 +114,15 @@ function NouveauRapport() {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({
+                    citoyen_nom: formData.citoyen_nom,
+                    citoyen_prenom: formData.citoyen_prenom,
+                    amende_id: selectedAmendes.length > 0 ? selectedAmendes[0].id : null,
+                    montant_applique: calculateTotal() > 0 ? `${calculateTotal()}$` : null,
+                    lieu: formData.lieu,
+                    est_recidive: formData.est_recidive,
+                    description: fullDescription
+                })
             });
 
             const data = await response.json();
@@ -203,9 +224,67 @@ function NouveauRapport() {
                             </div>
                         </div>
 
-                        {/* Sélection de l'infraction */}
+                        {/* Infractions sélectionnées */}
+                        {selectedAmendes.length > 0 && (
+                            <div className="form-section">
+                                <h3 className="form-section-title">✅ Infractions sélectionnées ({selectedAmendes.length})</h3>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    {selectedAmendes.map(amende => (
+                                        <div
+                                            key={amende.id}
+                                            style={{
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center',
+                                                padding: '0.75rem 1rem',
+                                                background: 'var(--bg-elevated)',
+                                                borderRadius: 'var(--radius-md)',
+                                                border: '1px solid var(--primary)'
+                                            }}
+                                        >
+                                            <div>
+                                                <strong>{amende.infraction}</strong>
+                                                <span style={{ marginLeft: '1rem', color: '#d4af37' }}>
+                                                    {formData.est_recidive && amende.recidive !== 'Non applicable'
+                                                        ? amende.recidive
+                                                        : amende.montant}
+                                                </span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => removeAmende(amende.id)}
+                                                style={{
+                                                    background: '#e74c3c',
+                                                    color: 'white',
+                                                    border: 'none',
+                                                    borderRadius: '50%',
+                                                    width: '24px',
+                                                    height: '24px',
+                                                    cursor: 'pointer',
+                                                    fontSize: '14px'
+                                                }}
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ))}
+                                    <div style={{
+                                        marginTop: '0.5rem',
+                                        padding: '1rem',
+                                        background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+                                        borderRadius: 'var(--radius-md)',
+                                        textAlign: 'right'
+                                    }}>
+                                        <span style={{ color: 'var(--text-muted)' }}>Montant total : </span>
+                                        <strong style={{ fontSize: '1.5rem', color: '#d4af37' }}>{calculateTotal()}$</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Sélection des infractions */}
                         <div className="form-section">
-                            <h3 className="form-section-title">📋 Infraction commise</h3>
+                            <h3 className="form-section-title">📋 Ajouter des infractions</h3>
 
                             <div className="form-row" style={{ marginBottom: '1rem' }}>
                                 <input
@@ -227,81 +306,52 @@ function NouveauRapport() {
                                 </select>
                             </div>
 
-                            <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
-                                {filteredAmendes.map((amende) => (
-                                    <div
-                                        key={amende.id}
-                                        className={`amende-selector ${selectedAmende?.id === amende.id ? 'selected' : ''}`}
-                                        onClick={() => selectAmende(amende)}
-                                        style={{
-                                            margin: 0,
-                                            borderRadius: 0,
-                                            borderBottom: '1px solid var(--border-color)',
-                                            padding: '1rem'
-                                        }}
-                                    >
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <strong>{amende.infraction}</strong>
-                                            <span style={{ color: 'var(--secondary)', fontWeight: 600 }}>{amende.montant}</span>
+                            <div style={{ maxHeight: '250px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                                {filteredAmendes.map((amende) => {
+                                    const isSelected = selectedAmendes.find(a => a.id === amende.id);
+                                    return (
+                                        <div
+                                            key={amende.id}
+                                            onClick={() => toggleAmende(amende)}
+                                            style={{
+                                                margin: 0,
+                                                borderRadius: 0,
+                                                borderBottom: '1px solid var(--border-color)',
+                                                padding: '0.75rem 1rem',
+                                                cursor: 'pointer',
+                                                background: isSelected ? 'rgba(0, 212, 170, 0.1)' : 'transparent',
+                                                borderLeft: isSelected ? '3px solid var(--primary)' : '3px solid transparent'
+                                            }}
+                                        >
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <div>
+                                                    <span style={{ marginRight: '0.5rem' }}>{isSelected ? '✅' : '⬜'}</span>
+                                                    <strong>{amende.infraction}</strong>
+                                                </div>
+                                                <span style={{ color: '#d4af37', fontWeight: 600 }}>{amende.montant}</span>
+                                            </div>
+                                            <small style={{ color: 'var(--text-muted)', marginLeft: '1.5rem' }}>{amende.categorie}</small>
                                         </div>
-                                        <small style={{ color: 'var(--text-muted)' }}>{amende.categorie}</small>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
-
-                            {selectedAmende && (
-                                <div className="amende-info" style={{ marginTop: '1rem' }}>
-                                    <div className="amende-info-item">
-                                        <div className="amende-info-label">Amende</div>
-                                        <div className="amende-info-value" style={{ color: 'var(--secondary)' }}>{selectedAmende.montant}</div>
-                                    </div>
-                                    <div className="amende-info-item">
-                                        <div className="amende-info-label">Récidive</div>
-                                        <div className="amende-info-value" style={{ color: 'var(--accent-red)' }}>
-                                            {selectedAmende.recidive !== 'Non applicable' ? selectedAmende.recidive : '-'}
-                                        </div>
-                                    </div>
-                                    <div className="amende-info-item">
-                                        <div className="amende-info-label">Points</div>
-                                        <div className="amende-info-value">{selectedAmende.retrait_points !== 'Aucun' ? selectedAmende.retrait_points : '-'}</div>
-                                    </div>
-                                    <div className="amende-info-item">
-                                        <div className="amende-info-label">Prison</div>
-                                        <div className="amende-info-value">{selectedAmende.prison !== 'Aucune' ? selectedAmende.prison : '-'}</div>
-                                    </div>
-                                </div>
-                            )}
                         </div>
 
                         {/* Détails du rapport */}
                         <div className="form-section">
                             <h3 className="form-section-title">📝 Détails du rapport</h3>
 
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label className="form-label" htmlFor="montant_applique">Montant appliqué</label>
-                                    <input
-                                        id="montant_applique"
-                                        name="montant_applique"
-                                        type="text"
-                                        className="form-input"
-                                        placeholder="Ex: 135€"
-                                        value={formData.montant_applique}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label" htmlFor="lieu">Lieu de l'infraction</label>
-                                    <input
-                                        id="lieu"
-                                        name="lieu"
-                                        type="text"
-                                        className="form-input"
-                                        placeholder="Ex: Boulevard Central"
-                                        value={formData.lieu}
-                                        onChange={handleChange}
-                                    />
-                                </div>
+                            <div className="form-group">
+                                <label className="form-label" htmlFor="lieu">Lieu de l'infraction</label>
+                                <input
+                                    id="lieu"
+                                    name="lieu"
+                                    type="text"
+                                    className="form-input"
+                                    placeholder="Ex: Boulevard Central"
+                                    value={formData.lieu}
+                                    onChange={handleChange}
+                                />
                             </div>
 
                             <div className="form-group">
@@ -344,7 +394,7 @@ function NouveauRapport() {
                             className="btn btn-primary btn-lg"
                             disabled={submitting || !formData.citoyen_nom || !formData.citoyen_prenom}
                         >
-                            {submitting ? 'Création...' : '✓ Créer le rapport'}
+                            {submitting ? 'Création...' : `✓ Créer le rapport${selectedAmendes.length > 0 ? ` (${calculateTotal()}$)` : ''}`}
                         </button>
                     </div>
                 </form>
