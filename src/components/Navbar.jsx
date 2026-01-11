@@ -32,9 +32,14 @@ function Navbar() {
                         ➕ Nouveau
                     </Link>
                     {user?.role === 'admin' && (
-                        <Link to="/admin" className={`navbar-link ${isActive('/admin') ? 'active' : ''}`}>
-                            ⚙️ Admin
-                        </Link>
+                        <>
+                            <Link to="/admin" className={`navbar-link ${isActive('/admin') ? 'active' : ''}`}>
+                                ⚙️ Admin
+                            </Link>
+                            <Link to="/logs" className={`navbar-link ${isActive('/logs') ? 'active' : ''}`}>
+                                📜 Logs
+                            </Link>
+                        </>
                     )}
                 </div>
 

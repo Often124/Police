@@ -1,6 +1,7 @@
 const express = require('express');
 const supabase = require('../db/supabase');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
+const { createLog } = require('./logs');
 
 const router = express.Router();
 
@@ -90,6 +91,9 @@ router.post('/', authMiddleware, async (req, res) => {
 
         if (error) throw error;
 
+        // Log création
+        await createLog(req.user.id, 'CREATION_RAPPORT', `Rapport #${data.id} créé pour ${citoyen_prenom} ${citoyen_nom}`);
+
         res.status(201).json({
             message: 'Rapport créé avec succès',
             id: data.id
@@ -104,12 +108,26 @@ router.post('/', authMiddleware, async (req, res) => {
 router.patch('/:id/statut', authMiddleware, async (req, res) => {
     try {
         const { statut } = req.body;
+        const rapportId = req.params.id;
+
+        // Récupérer le rapport avant modification pour le log
+        const { data: oldRapport } = await supabase
+            .from('rapports')
+            .select('statut, citoyen_nom, citoyen_prenom')
+            .eq('id', rapportId)
+            .single();
+
         const { error } = await supabase
             .from('rapports')
             .update({ statut })
-            .eq('id', req.params.id);
+            .eq('id', rapportId);
 
         if (error) throw error;
+
+        // Log modification
+        await createLog(req.user.id, 'MODIFICATION_RAPPORT',
+            `Rapport #${rapportId} (${oldRapport?.citoyen_prenom} ${oldRapport?.citoyen_nom}) : statut modifié de "${oldRapport?.statut}" à "${statut}"`);
+
         res.json({ message: 'Statut mis à jour' });
     } catch (error) {
         console.error('Erreur update statut:', error);
@@ -120,12 +138,25 @@ router.patch('/:id/statut', authMiddleware, async (req, res) => {
 // Delete rapport (admin only)
 router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
     try {
+        const rapportId = parseInt(req.params.id);
+
+        // Récupérer le rapport avant suppression pour le log
+        const { data: rapport } = await supabase
+            .from('rapports')
+            .select('citoyen_nom, citoyen_prenom, montant_applique, description')
+            .eq('id', rapportId)
+            .single();
+
         const { error } = await supabase
             .from('rapports')
             .delete()
-            .eq('id', parseInt(req.params.id));
+            .eq('id', rapportId);
 
         if (error) throw error;
+
+        // Log suppression
+        await createLog(req.user.id, 'SUPPRESSION_RAPPORT',
+            `Rapport #${rapportId} SUPPRIMÉ - Citoyen: ${rapport?.citoyen_prenom} ${rapport?.citoyen_nom} - Montant: ${rapport?.montant_applique || 'N/A'}`);
 
         res.json({ message: 'Rapport supprimé' });
     } catch (error) {

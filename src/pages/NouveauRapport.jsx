@@ -78,6 +78,7 @@ function NouveauRapport() {
         setSelectedAmendes(prev => prev.filter(a => a.id !== amendeId));
     };
 
+    // Calcul du montant total
     const calculateTotal = () => {
         let total = 0;
         selectedAmendes.forEach(amende => {
@@ -90,6 +91,42 @@ function NouveauRapport() {
         return total;
     };
 
+    // Calcul du total des points de permis
+    const calculateTotalPoints = () => {
+        let total = 0;
+        selectedAmendes.forEach(amende => {
+            if (amende.retrait_points && amende.retrait_points !== 'Aucun' && amende.retrait_points !== '///' && amende.retrait_points !== 'supression du permis') {
+                const points = parseInt(amende.retrait_points.replace(/[^0-9]/g, '') || '0');
+                total += points;
+            }
+        });
+        // Vérifier si une amende entraîne la suppression du permis
+        const suppressionPermis = selectedAmendes.some(a =>
+            a.retrait_points?.toLowerCase().includes('supression') ||
+            a.retrait_points?.toLowerCase().includes('suppression')
+        );
+        return { total, suppressionPermis };
+    };
+
+    // Calcul du total de la peine de prison
+    const calculateTotalPrison = () => {
+        let totalMinutes = 0;
+        selectedAmendes.forEach(amende => {
+            const prisonStr = formData.est_recidive && amende.recidive !== 'Non applicable'
+                ? amende.recidive  // La récidive peut inclure des minutes
+                : amende.prison;
+
+            if (prisonStr && prisonStr !== 'Aucune' && prisonStr !== '///') {
+                // Extraire les minutes du texte (ex: "10 minutes", "5 min", "15minutes")
+                const match = prisonStr.match(/(\d+)\s*(minutes?|min)/i);
+                if (match) {
+                    totalMinutes += parseInt(match[1]);
+                }
+            }
+        });
+        return totalMinutes;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
@@ -98,14 +135,28 @@ function NouveauRapport() {
         const token = localStorage.getItem('token');
 
         // Construire la description avec toutes les infractions
+        const { total: totalPoints, suppressionPermis } = calculateTotalPoints();
+        const totalPrison = calculateTotalPrison();
+
         const infractionsText = selectedAmendes.map(a => {
             const montant = formData.est_recidive && a.recidive !== 'Non applicable' ? a.recidive : a.montant;
             return `- ${a.infraction} (${montant})`;
         }).join('\n');
 
-        const fullDescription = selectedAmendes.length > 0
-            ? `INFRACTIONS COMMISES:\n${infractionsText}\n\n${formData.description}`
-            : formData.description;
+        let summaryText = '';
+        if (selectedAmendes.length > 0) {
+            summaryText = `INFRACTIONS COMMISES:\n${infractionsText}\n\n`;
+            summaryText += `TOTAL: ${calculateTotal()}$`;
+            if (totalPoints > 0 || suppressionPermis) {
+                summaryText += ` | Points: ${suppressionPermis ? 'SUPPRESSION PERMIS' : `-${totalPoints}`}`;
+            }
+            if (totalPrison > 0) {
+                summaryText += ` | Prison: ${totalPrison} min`;
+            }
+            summaryText += '\n\n';
+        }
+
+        const fullDescription = summaryText + formData.description;
 
         try {
             const response = await fetch('/api/rapports', {
@@ -172,6 +223,9 @@ function NouveauRapport() {
             </main>
         );
     }
+
+    const { total: totalPoints, suppressionPermis } = calculateTotalPoints();
+    const totalPrison = calculateTotalPrison();
 
     return (
         <main className="main-content fade-in">
@@ -268,15 +322,34 @@ function NouveauRapport() {
                                             </button>
                                         </div>
                                     ))}
+
+                                    {/* Résumé des totaux */}
                                     <div style={{
                                         marginTop: '0.5rem',
                                         padding: '1rem',
                                         background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
                                         borderRadius: 'var(--radius-md)',
-                                        textAlign: 'right'
+                                        display: 'grid',
+                                        gridTemplateColumns: 'repeat(3, 1fr)',
+                                        gap: '1rem',
+                                        textAlign: 'center'
                                     }}>
-                                        <span style={{ color: 'var(--text-muted)' }}>Montant total : </span>
-                                        <strong style={{ fontSize: '1.5rem', color: '#d4af37' }}>{calculateTotal()}$</strong>
+                                        <div>
+                                            <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>💰 Montant total</div>
+                                            <strong style={{ fontSize: '1.3rem', color: '#d4af37' }}>{calculateTotal()}$</strong>
+                                        </div>
+                                        <div>
+                                            <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>🪪 Points de permis</div>
+                                            <strong style={{ fontSize: '1.3rem', color: suppressionPermis ? '#e74c3c' : '#f39c12' }}>
+                                                {suppressionPermis ? 'SUPPRESSION' : (totalPoints > 0 ? `-${totalPoints}` : '-')}
+                                            </strong>
+                                        </div>
+                                        <div>
+                                            <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>⛓️ Peine de prison</div>
+                                            <strong style={{ fontSize: '1.3rem', color: totalPrison > 0 ? '#e74c3c' : 'var(--text-muted)' }}>
+                                                {totalPrison > 0 ? `${totalPrison} min` : '-'}
+                                            </strong>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

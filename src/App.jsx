@@ -7,6 +7,7 @@ import Amendes from './pages/Amendes';
 import Rapports from './pages/Rapports';
 import NouveauRapport from './pages/NouveauRapport';
 import Admin from './pages/Admin';
+import Logs from './pages/Logs';
 
 // Auth Context
 export const AuthContext = createContext(null);
@@ -138,6 +139,11 @@ function App() {
                         <Route path="/admin" element={
                             <ProtectedRoute adminOnly>
                                 <Admin />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/logs" element={
+                            <ProtectedRoute adminOnly>
+                                <Logs />
                             </ProtectedRoute>
                         } />
                         <Route path="*" element={<Navigate to="/" />} />
