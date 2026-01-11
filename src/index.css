@@ -1106,3 +1106,369 @@ tbody tr:last-child td {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ==========================================
+   RESPONSIVE - MOBILE STYLES
+   ========================================== */
+
+/* Tablet (max-width: 1024px) */
+@media (max-width: 1024px) {
+  .navbar-container {
+    padding: 0 1rem;
+  }
+  
+  .navbar-link {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+  }
+  
+  .navbar-user-info {
+    display: none;
+  }
+  
+  .main-content {
+    padding: 1.5rem;
+  }
+  
+  .dashboard-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Mobile (max-width: 768px) */
+@media (max-width: 768px) {
+  /* Navbar mobile */
+  .navbar {
+    padding: 0 1rem;
+  }
+  
+  .navbar-container {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 0.75rem 0;
+    gap: 0.75rem;
+  }
+  
+  .navbar-brand {
+    gap: 0.75rem;
+  }
+  
+  .navbar-logo {
+    width: 40px;
+    height: 40px;
+    font-size: 1.2rem;
+  }
+  
+  .navbar-title {
+    font-size: 1rem;
+  }
+  
+  .navbar-subtitle {
+    font-size: 0.65rem;
+  }
+  
+  .navbar-menu {
+    order: 3;
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-color);
+  }
+  
+  .navbar-link {
+    padding: 0.5rem 0.6rem;
+    font-size: 0.75rem;
+    gap: 0.25rem;
+  }
+  
+  .navbar-user {
+    padding-left: 0;
+    border-left: none;
+    margin-left: auto;
+  }
+  
+  .navbar-logout {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.75rem;
+  }
+  
+  /* Main content mobile */
+  .main-content {
+    padding: 1rem;
+  }
+  
+  .page-header {
+    margin-bottom: 1.25rem;
+  }
+  
+  .page-title {
+    font-size: 1.5rem;
+  }
+  
+  .page-subtitle {
+    font-size: 0.9rem;
+  }
+  
+  /* Dashboard stats mobile */
+  .dashboard-stats {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .stat-card {
+    padding: 1rem;
+  }
+  
+  .stat-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 1.25rem;
+  }
+  
+  .stat-value {
+    font-size: 1.5rem;
+  }
+  
+  /* Tables mobile */
+  .table-header {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 1rem;
+  }
+  
+  .table-filters {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .table-filters .form-input,
+  .table-filters .btn,
+  .table-search {
+    width: 100%;
+    min-width: unset;
+  }
+  
+  .table-container {
+    overflow-x: auto;
+  }
+  
+  table {
+    min-width: 600px;
+  }
+  
+  th, td {
+    padding: 0.75rem 1rem;
+    font-size: 0.8rem;
+  }
+  
+  /* Forms mobile */
+  .form-page {
+    padding: 0;
+  }
+  
+  .form-card {
+    padding: 1.25rem;
+    border-radius: var(--radius-lg);
+  }
+  
+  .form-section {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+  
+  .form-section-title {
+    font-size: 1rem;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+  }
+  
+  .form-actions .btn {
+    width: 100%;
+  }
+  
+  /* Buttons mobile */
+  .btn {
+    padding: 0.65rem 1.25rem;
+    font-size: 0.85rem;
+  }
+  
+  .btn-lg {
+    padding: 0.875rem 1.5rem;
+    font-size: 0.95rem;
+  }
+  
+  /* Login page mobile */
+  .login-page {
+    padding: 1rem;
+  }
+  
+  .login-logo {
+    width: 80px;
+    height: 80px;
+    font-size: 2.5rem;
+  }
+  
+  .login-title {
+    font-size: 1.5rem;
+  }
+  
+  .login-card {
+    padding: 1.5rem;
+  }
+  
+  /* Modals mobile */
+  .modal-content {
+    margin: 1rem;
+    max-width: calc(100vw - 2rem) !important;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  
+  .modal-header h2 {
+    font-size: 1.1rem;
+  }
+  
+  .modal-body {
+    padding: 1rem;
+  }
+  
+  .modal-footer {
+    padding: 1rem;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .modal-footer .btn {
+    width: 100%;
+  }
+  
+  /* Cards mobile */
+  .card {
+    padding: 1rem;
+  }
+  
+  /* Inputs mobile */
+  .form-input, .form-select, .form-textarea {
+    padding: 0.75rem 0.875rem;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+  
+  /* Toast mobile */
+  .toast {
+    left: 1rem;
+    right: 1rem;
+    bottom: 1rem;
+  }
+  
+  /* Empty state mobile */
+  .empty-state {
+    padding: 2rem 1rem;
+  }
+  
+  .empty-state-icon {
+    font-size: 2.5rem;
+  }
+}
+
+/* Small mobile (max-width: 480px) */
+@media (max-width: 480px) {
+  html {
+    font-size: 14px;
+  }
+  
+  .navbar-menu {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 0.5rem;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .navbar-link {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  
+  .page-title {
+    font-size: 1.25rem;
+  }
+  
+  .stat-card {
+    flex-direction: column;
+    text-align: center;
+    gap: 0.75rem;
+  }
+  
+  .stat-icon {
+    margin: 0 auto;
+  }
+  
+  table {
+    min-width: 500px;
+  }
+  
+  .badge {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.65rem;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .btn:hover {
+    transform: none;
+  }
+  
+  .stat-card:hover {
+    transform: none;
+  }
+  
+  .card:hover {
+    box-shadow: var(--shadow-sm);
+  }
+  
+  /* Larger touch targets */
+  .navbar-link {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+  
+  .btn {
+    min-height: 44px;
+  }
+  
+  tbody tr {
+    cursor: default;
+  }
+}
+
+/* Landscape mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+  .login-page {
+    padding: 1rem;
+  }
+  
+  .login-logo {
+    width: 60px;
+    height: 60px;
+    font-size: 1.75rem;
+    margin-bottom: 1rem;
+  }
+  
+  .login-header {
+    margin-bottom: 1.5rem;
+  }
+  
+  .login-card {
+    padding: 1.25rem;
+  }
+}
+
