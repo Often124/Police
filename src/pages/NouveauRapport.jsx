@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 function NouveauRapport() {
@@ -22,9 +22,56 @@ function NouveauRapport() {
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [searchAmende, setSearchAmende] = useState('');
 
+    // Récidive detection
+    const [previousInfractionIds, setPreviousInfractionIds] = useState([]);
+    const [checkingRecidive, setCheckingRecidive] = useState(false);
+    const [recidiveInfo, setRecidiveInfo] = useState(null);
+
     useEffect(() => {
         fetchAmendes();
     }, []);
+
+    // Check recidive when citizen name changes
+    const checkRecidive = useCallback(async (nom, prenom) => {
+        if (!nom || !prenom || nom.length < 2 || prenom.length < 2) {
+            setPreviousInfractionIds([]);
+            setRecidiveInfo(null);
+            return;
+        }
+
+        const token = localStorage.getItem('token');
+        setCheckingRecidive(true);
+
+        try {
+            const response = await fetch(`/api/rapports/recidive/${encodeURIComponent(nom)}/${encodeURIComponent(prenom)}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setPreviousInfractionIds(data.previousInfractionIds || []);
+                setRecidiveInfo(data);
+
+                // Auto-enable recidive if citizen has previous infractions
+                if (data.isRecidiviste) {
+                    setFormData(prev => ({ ...prev, est_recidive: true }));
+                }
+            }
+        } catch (error) {
+            console.error('Erreur vérification récidive:', error);
+        }
+
+        setCheckingRecidive(false);
+    }, []);
+
+    // Debounced recidive check
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            checkRecidive(formData.citoyen_nom, formData.citoyen_prenom);
+        }, 500);
+
+        return () => clearTimeout(timeoutId);
+    }, [formData.citoyen_nom, formData.citoyen_prenom, checkRecidive]);
 
     const fetchAmendes = async () => {
         const token = localStorage.getItem('token');
@@ -78,13 +125,17 @@ function NouveauRapport() {
         setSelectedAmendes(prev => prev.filter(a => a.id !== amendeId));
     };
 
+    // Check if infraction is a recidive for this citizen
+    const isRecidiveInfraction = (amendeId) => {
+        return previousInfractionIds.includes(amendeId);
+    };
+
     // Calcul du montant total
     const calculateTotal = () => {
         let total = 0;
         selectedAmendes.forEach(amende => {
-            const montantStr = formData.est_recidive && amende.recidive !== 'Non applicable'
-                ? amende.recidive
-                : amende.montant;
+            const isRecidive = formData.est_recidive && amende.recidive !== 'Non applicable';
+            const montantStr = isRecidive ? amende.recidive : amende.montant;
             const montant = parseInt(montantStr?.replace(/[^0-9]/g, '') || '0');
             total += montant;
         });
@@ -100,7 +151,6 @@ function NouveauRapport() {
                 total += points;
             }
         });
-        // Vérifier si une amende entraîne la suppression du permis
         const suppressionPermis = selectedAmendes.some(a =>
             a.retrait_points?.toLowerCase().includes('supression') ||
             a.retrait_points?.toLowerCase().includes('suppression')
@@ -108,16 +158,26 @@ function NouveauRapport() {
         return { total, suppressionPermis };
     };
 
-    // Calcul du total de la peine de prison
+    // Calcul du total de la peine de prison (avec récidive automatique)
     const calculateTotalPrison = () => {
         let totalMinutes = 0;
         selectedAmendes.forEach(amende => {
-            const prisonStr = formData.est_recidive && amende.recidive !== 'Non applicable'
-                ? amende.recidive  // La récidive peut inclure des minutes
-                : amende.prison;
+            // Use recidive prison time if this specific infraction was committed before by this citizen
+            const useRecidivePrison = formData.est_recidive || isRecidiveInfraction(amende.id);
+
+            let prisonStr = amende.prison;
+
+            // If recidive, try to extract prison from recidive field
+            if (useRecidivePrison && amende.recidive !== 'Non applicable') {
+                // Check if recidive field contains prison time
+                const recidiveMatch = amende.recidive?.match(/(\d+)\s*(minutes?|min)/i);
+                if (recidiveMatch) {
+                    totalMinutes += parseInt(recidiveMatch[1]);
+                    return; // Skip normal prison extraction
+                }
+            }
 
             if (prisonStr && prisonStr !== 'Aucune' && prisonStr !== '///') {
-                // Extraire les minutes du texte (ex: "10 minutes", "5 min", "15minutes")
                 const match = prisonStr.match(/(\d+)\s*(minutes?|min)/i);
                 if (match) {
                     totalMinutes += parseInt(match[1]);
@@ -134,19 +194,20 @@ function NouveauRapport() {
 
         const token = localStorage.getItem('token');
 
-        // Construire la description avec toutes les infractions
         const { total: totalPoints, suppressionPermis } = calculateTotalPoints();
         const totalPrison = calculateTotalPrison();
 
         const infractionsText = selectedAmendes.map(a => {
-            const montant = formData.est_recidive && a.recidive !== 'Non applicable' ? a.recidive : a.montant;
-            return `- ${a.infraction} (${montant})`;
+            const isRecidive = formData.est_recidive || isRecidiveInfraction(a.id);
+            const montant = isRecidive && a.recidive !== 'Non applicable' ? a.recidive : a.montant;
+            const recidiveTag = isRecidiveInfraction(a.id) ? ' [RÉCIDIVE]' : '';
+            return `- ${a.infraction}${recidiveTag} (${montant})`;
         }).join('\n');
 
         let summaryText = '';
         if (selectedAmendes.length > 0) {
             summaryText = `INFRACTIONS COMMISES:\n${infractionsText}\n\n`;
-            summaryText += `TOTAL: ${calculateTotal()}$`;
+            summaryText += `TOTAL: ${calculateTotal()}€`;
             if (totalPoints > 0 || suppressionPermis) {
                 summaryText += ` | Points: ${suppressionPermis ? 'SUPPRESSION PERMIS' : `-${totalPoints}`}`;
             }
@@ -169,7 +230,7 @@ function NouveauRapport() {
                     citoyen_nom: formData.citoyen_nom,
                     citoyen_prenom: formData.citoyen_prenom,
                     amende_id: selectedAmendes.length > 0 ? selectedAmendes[0].id : null,
-                    montant_applique: calculateTotal() > 0 ? `${calculateTotal()}$` : null,
+                    montant_applique: calculateTotal() > 0 ? `${calculateTotal()}€` : null,
                     lieu: formData.lieu,
                     est_recidive: formData.est_recidive,
                     description: fullDescription
@@ -276,6 +337,21 @@ function NouveauRapport() {
                                     />
                                 </div>
                             </div>
+
+                            {/* Recidive alert */}
+                            {recidiveInfo && recidiveInfo.isRecidiviste && (
+                                <div style={{
+                                    marginTop: '1rem',
+                                    padding: '1rem',
+                                    background: 'rgba(231, 76, 60, 0.1)',
+                                    border: '1px solid #e74c3c',
+                                    borderRadius: 'var(--radius-md)',
+                                    color: '#e74c3c'
+                                }}>
+                                    ⚠️ <strong>RÉCIDIVISTE DÉTECTÉ !</strong> Ce citoyen a déjà {recidiveInfo.totalPreviousReports} rapport(s) enregistré(s).
+                                    {checkingRecidive && ' Vérification...'}
+                                </div>
+                            )}
                         </div>
 
                         {/* Infractions sélectionnées */}
@@ -283,45 +359,53 @@ function NouveauRapport() {
                             <div className="form-section">
                                 <h3 className="form-section-title">✅ Infractions sélectionnées ({selectedAmendes.length})</h3>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                    {selectedAmendes.map(amende => (
-                                        <div
-                                            key={amende.id}
-                                            style={{
-                                                display: 'flex',
-                                                justifyContent: 'space-between',
-                                                alignItems: 'center',
-                                                padding: '0.75rem 1rem',
-                                                background: 'var(--bg-elevated)',
-                                                borderRadius: 'var(--radius-md)',
-                                                border: '1px solid var(--primary)'
-                                            }}
-                                        >
-                                            <div>
-                                                <strong>{amende.infraction}</strong>
-                                                <span style={{ marginLeft: '1rem', color: '#d4af37' }}>
-                                                    {formData.est_recidive && amende.recidive !== 'Non applicable'
-                                                        ? amende.recidive
-                                                        : amende.montant}
-                                                </span>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => removeAmende(amende.id)}
+                                    {selectedAmendes.map(amende => {
+                                        const isRecidive = isRecidiveInfraction(amende.id);
+                                        return (
+                                            <div
+                                                key={amende.id}
                                                 style={{
-                                                    background: '#e74c3c',
-                                                    color: 'white',
-                                                    border: 'none',
-                                                    borderRadius: '50%',
-                                                    width: '24px',
-                                                    height: '24px',
-                                                    cursor: 'pointer',
-                                                    fontSize: '14px'
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    alignItems: 'center',
+                                                    padding: '0.75rem 1rem',
+                                                    background: isRecidive ? 'rgba(231, 76, 60, 0.1)' : 'var(--bg-elevated)',
+                                                    borderRadius: 'var(--radius-md)',
+                                                    border: isRecidive ? '1px solid #e74c3c' : '1px solid var(--primary)'
                                                 }}
                                             >
-                                                ×
-                                            </button>
-                                        </div>
-                                    ))}
+                                                <div>
+                                                    <strong>{amende.infraction}</strong>
+                                                    {isRecidive && (
+                                                        <span style={{ marginLeft: '0.5rem', background: '#e74c3c', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem' }}>
+                                                            RÉCIDIVE
+                                                        </span>
+                                                    )}
+                                                    <span style={{ marginLeft: '1rem', color: '#d4af37' }}>
+                                                        {(formData.est_recidive || isRecidive) && amende.recidive !== 'Non applicable'
+                                                            ? amende.recidive
+                                                            : amende.montant}
+                                                    </span>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeAmende(amende.id)}
+                                                    style={{
+                                                        background: '#e74c3c',
+                                                        color: 'white',
+                                                        border: 'none',
+                                                        borderRadius: '50%',
+                                                        width: '24px',
+                                                        height: '24px',
+                                                        cursor: 'pointer',
+                                                        fontSize: '14px'
+                                                    }}
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
 
                                     {/* Résumé des totaux */}
                                     <div style={{
@@ -336,7 +420,7 @@ function NouveauRapport() {
                                     }}>
                                         <div>
                                             <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>💰 Montant total</div>
-                                            <strong style={{ fontSize: '1.3rem', color: '#d4af37' }}>{calculateTotal()}$</strong>
+                                            <strong style={{ fontSize: '1.3rem', color: '#d4af37' }}>{calculateTotal()}€</strong>
                                         </div>
                                         <div>
                                             <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>🪪 Points de permis</div>
@@ -382,6 +466,7 @@ function NouveauRapport() {
                             <div style={{ maxHeight: '250px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
                                 {filteredAmendes.map((amende) => {
                                     const isSelected = selectedAmendes.find(a => a.id === amende.id);
+                                    const isRecidive = isRecidiveInfraction(amende.id);
                                     return (
                                         <div
                                             key={amende.id}
@@ -392,14 +477,19 @@ function NouveauRapport() {
                                                 borderBottom: '1px solid var(--border-color)',
                                                 padding: '0.75rem 1rem',
                                                 cursor: 'pointer',
-                                                background: isSelected ? 'rgba(0, 212, 170, 0.1)' : 'transparent',
-                                                borderLeft: isSelected ? '3px solid var(--primary)' : '3px solid transparent'
+                                                background: isSelected ? 'rgba(0, 212, 170, 0.1)' : (isRecidive ? 'rgba(231, 76, 60, 0.05)' : 'transparent'),
+                                                borderLeft: isSelected ? '3px solid var(--primary)' : (isRecidive ? '3px solid #e74c3c' : '3px solid transparent')
                                             }}
                                         >
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                 <div>
                                                     <span style={{ marginRight: '0.5rem' }}>{isSelected ? '✅' : '⬜'}</span>
                                                     <strong>{amende.infraction}</strong>
+                                                    {isRecidive && (
+                                                        <span style={{ marginLeft: '0.5rem', background: '#e74c3c', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem' }}>
+                                                            ⚠️ RÉCIDIVE
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <span style={{ color: '#d4af37', fontWeight: 600 }}>{amende.montant}</span>
                                             </div>
@@ -435,7 +525,7 @@ function NouveauRapport() {
                                         checked={formData.est_recidive}
                                         onChange={handleChange}
                                     />
-                                    <span>⚠️ Récidive (appliquer le tarif récidive)</span>
+                                    <span>⚠️ Appliquer le tarif récidive à toutes les infractions</span>
                                 </label>
                             </div>
 
@@ -467,7 +557,7 @@ function NouveauRapport() {
                             className="btn btn-primary btn-lg"
                             disabled={submitting || !formData.citoyen_nom || !formData.citoyen_prenom}
                         >
-                            {submitting ? 'Création...' : `✓ Créer le rapport${selectedAmendes.length > 0 ? ` (${calculateTotal()}$)` : ''}`}
+                            {submitting ? 'Création...' : `✓ Créer le rapport${selectedAmendes.length > 0 ? ` (${calculateTotal()}€)` : ''}`}
                         </button>
                     </div>
                 </form>

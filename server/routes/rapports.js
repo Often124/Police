@@ -165,4 +165,39 @@ router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
     }
 });
 
+// Check recidive for a citizen (returns list of their previous infractions)
+router.get('/recidive/:nom/:prenom', authMiddleware, async (req, res) => {
+    try {
+        const { nom, prenom } = req.params;
+
+        // Get all previous reports for this citizen
+        const { data: rapports, error } = await supabase
+            .from('rapports')
+            .select(`
+                amende_id,
+                amendes:amende_id (id, infraction)
+            `)
+            .ilike('citoyen_nom', nom)
+            .ilike('citoyen_prenom', prenom);
+
+        if (error) throw error;
+
+        // Extract unique infraction IDs
+        const previousInfractionIds = [...new Set(
+            rapports
+                .filter(r => r.amende_id)
+                .map(r => r.amende_id)
+        )];
+
+        res.json({
+            isRecidiviste: previousInfractionIds.length > 0,
+            previousInfractionIds,
+            totalPreviousReports: rapports.length
+        });
+    } catch (error) {
+        console.error('Erreur check recidive:', error);
+        res.status(500).json({ error: 'Erreur serveur' });
+    }
+});
+
 module.exports = router;
