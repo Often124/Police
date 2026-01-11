@@ -26,9 +26,27 @@ router.post('/', authMiddleware, async (req, res) => {
         const { citizen_id, name, photo_url, reason } = req.body;
         const added_by = req.user.id;
 
+        // Build insert object, only include citizen_id if it's a valid non-empty value
+        const insertData = {
+            name,
+            reason,
+            added_by,
+            status: 'active'
+        };
+
+        // Only add citizen_id if it exists and is not empty
+        if (citizen_id && citizen_id.trim() !== '') {
+            insertData.citizen_id = citizen_id;
+        }
+
+        // Only add photo_url if provided
+        if (photo_url && photo_url.trim() !== '') {
+            insertData.photo_url = photo_url;
+        }
+
         const { data, error } = await supabase
             .from('wanted')
-            .insert([{ citizen_id, name, photo_url, reason, added_by, status: 'active' }])
+            .insert([insertData])
             .select();
 
         if (error) throw error;
