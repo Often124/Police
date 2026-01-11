@@ -77,6 +77,40 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
     }
 });
 
+// Update amende (admin only)
+router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+        const { infraction, montant, recidive, retrait_points, prison, immobilisation, fourriere, categorie } = req.body;
+
+        if (!infraction) {
+            return res.status(400).json({ error: 'Le nom de l\'infraction est obligatoire' });
+        }
+
+        const { data, error } = await supabase
+            .from('amendes')
+            .update({
+                infraction,
+                montant: montant || 'Non défini',
+                recidive: recidive || 'Non applicable',
+                retrait_points: retrait_points || 'Aucun',
+                prison: prison || 'Aucune',
+                immobilisation: immobilisation || 'Non',
+                fourriere: fourriere || 'Non',
+                categorie: categorie || 'Autres infractions'
+            })
+            .eq('id', parseInt(req.params.id))
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        res.json({ message: 'Infraction modifiée avec succès', amende: data });
+    } catch (error) {
+        console.error('Erreur update amende:', error);
+        res.status(500).json({ error: 'Erreur serveur' });
+    }
+});
+
 // Delete amende (admin only)
 router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
     try {

@@ -9,7 +9,8 @@ function Amendes() {
     const [search, setSearch] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [showModal, setShowModal] = useState(false);
-    const [newAmende, setNewAmende] = useState({
+    const [editingAmende, setEditingAmende] = useState(null);
+    const [formData, setFormData] = useState({
         infraction: '',
         montant: '',
         recidive: '',
@@ -69,39 +70,63 @@ function Amendes() {
         setLoading(false);
     };
 
-    const handleCreateAmende = async (e) => {
+    const openCreateModal = () => {
+        setEditingAmende(null);
+        setFormData({
+            infraction: '',
+            montant: '',
+            recidive: '',
+            retrait_points: '',
+            prison: '',
+            immobilisation: 'Non',
+            fourriere: 'Non',
+            categorie: 'Autres infractions'
+        });
+        setShowModal(true);
+    };
+
+    const openEditModal = (amende) => {
+        setEditingAmende(amende);
+        setFormData({
+            infraction: amende.infraction || '',
+            montant: amende.montant || '',
+            recidive: amende.recidive || '',
+            retrait_points: amende.retrait_points || '',
+            prison: amende.prison || '',
+            immobilisation: amende.immobilisation || 'Non',
+            fourriere: amende.fourriere || 'Non',
+            categorie: amende.categorie || 'Autres infractions'
+        });
+        setShowModal(true);
+    };
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
         const token = localStorage.getItem('token');
 
         try {
-            const response = await fetch('/api/amendes', {
-                method: 'POST',
+            const url = editingAmende ? `/api/amendes/${editingAmende.id}` : '/api/amendes';
+            const method = editingAmende ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method,
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(newAmende)
+                body: JSON.stringify(formData)
             });
 
             if (response.ok) {
                 setShowModal(false);
-                setNewAmende({
-                    infraction: '',
-                    montant: '',
-                    recidive: '',
-                    retrait_points: '',
-                    prison: '',
-                    immobilisation: 'Non',
-                    fourriere: 'Non',
-                    categorie: 'Autres infractions'
-                });
+                setEditingAmende(null);
                 fetchAmendes();
             } else {
                 const data = await response.json();
-                alert(data.error || 'Erreur lors de la création');
+                alert(data.error || 'Erreur lors de l\'opération');
             }
         } catch (error) {
-            console.error('Erreur création:', error);
+            console.error('Erreur:', error);
         }
     };
 
@@ -178,7 +203,7 @@ function Amendes() {
                         {user?.role === 'admin' && (
                             <button
                                 className="btn btn-primary"
-                                onClick={() => setShowModal(true)}
+                                onClick={openCreateModal}
                             >
                                 ➕ Ajouter
                             </button>
@@ -230,13 +255,22 @@ function Amendes() {
                                     </td>
                                     {user?.role === 'admin' && (
                                         <td>
-                                            <button
-                                                className="btn btn-sm btn-danger"
-                                                onClick={() => handleDeleteAmende(amende.id)}
-                                                style={{ padding: '4px 8px', fontSize: '12px' }}
-                                            >
-                                                🗑️
-                                            </button>
+                                            <div style={{ display: 'flex', gap: '4px' }}>
+                                                <button
+                                                    className="btn btn-sm"
+                                                    onClick={() => openEditModal(amende)}
+                                                    style={{ padding: '4px 8px', fontSize: '12px', background: '#3498db' }}
+                                                >
+                                                    ✏️
+                                                </button>
+                                                <button
+                                                    className="btn btn-sm btn-danger"
+                                                    onClick={() => handleDeleteAmende(amende.id)}
+                                                    style={{ padding: '4px 8px', fontSize: '12px' }}
+                                                >
+                                                    🗑️
+                                                </button>
+                                            </div>
                                         </td>
                                     )}
                                 </tr>
@@ -252,22 +286,22 @@ function Amendes() {
                 )}
             </div>
 
-            {/* Modal création */}
+            {/* Modal création / édition */}
             {showModal && (
                 <div className="modal-overlay" onClick={() => setShowModal(false)}>
                     <div className="modal" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h2>➕ Nouvelle infraction</h2>
+                            <h2>{editingAmende ? '✏️ Modifier l\'infraction' : '➕ Nouvelle infraction'}</h2>
                             <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
                         </div>
-                        <form onSubmit={handleCreateAmende}>
+                        <form onSubmit={handleSubmit}>
                             <div className="form-group">
                                 <label className="form-label">Nom de l'infraction *</label>
                                 <input
                                     type="text"
                                     className="form-input"
-                                    value={newAmende.infraction}
-                                    onChange={(e) => setNewAmende({ ...newAmende, infraction: e.target.value })}
+                                    value={formData.infraction}
+                                    onChange={(e) => setFormData({ ...formData, infraction: e.target.value })}
                                     required
                                 />
                             </div>
@@ -278,8 +312,8 @@ function Amendes() {
                                         type="text"
                                         className="form-input"
                                         placeholder="Ex: 500$"
-                                        value={newAmende.montant}
-                                        onChange={(e) => setNewAmende({ ...newAmende, montant: e.target.value })}
+                                        value={formData.montant}
+                                        onChange={(e) => setFormData({ ...formData, montant: e.target.value })}
                                     />
                                 </div>
                                 <div className="form-group">
@@ -288,8 +322,8 @@ function Amendes() {
                                         type="text"
                                         className="form-input"
                                         placeholder="Ex: 1000$"
-                                        value={newAmende.recidive}
-                                        onChange={(e) => setNewAmende({ ...newAmende, recidive: e.target.value })}
+                                        value={formData.recidive}
+                                        onChange={(e) => setFormData({ ...formData, recidive: e.target.value })}
                                     />
                                 </div>
                             </div>
@@ -300,8 +334,8 @@ function Amendes() {
                                         type="text"
                                         className="form-input"
                                         placeholder="Ex: 2 points"
-                                        value={newAmende.retrait_points}
-                                        onChange={(e) => setNewAmende({ ...newAmende, retrait_points: e.target.value })}
+                                        value={formData.retrait_points}
+                                        onChange={(e) => setFormData({ ...formData, retrait_points: e.target.value })}
                                     />
                                 </div>
                                 <div className="form-group">
@@ -310,8 +344,8 @@ function Amendes() {
                                         type="text"
                                         className="form-input"
                                         placeholder="Ex: 10 min"
-                                        value={newAmende.prison}
-                                        onChange={(e) => setNewAmende({ ...newAmende, prison: e.target.value })}
+                                        value={formData.prison}
+                                        onChange={(e) => setFormData({ ...formData, prison: e.target.value })}
                                     />
                                 </div>
                             </div>
@@ -319,8 +353,8 @@ function Amendes() {
                                 <label className="form-label">Catégorie</label>
                                 <select
                                     className="form-select"
-                                    value={newAmende.categorie}
-                                    onChange={(e) => setNewAmende({ ...newAmende, categorie: e.target.value })}
+                                    value={formData.categorie}
+                                    onChange={(e) => setFormData({ ...formData, categorie: e.target.value })}
                                 >
                                     {categoriesList.map((cat) => (
                                         <option key={cat} value={cat}>{cat}</option>
@@ -332,7 +366,7 @@ function Amendes() {
                                     Annuler
                                 </button>
                                 <button type="submit" className="btn btn-primary">
-                                    Créer l'infraction
+                                    {editingAmende ? 'Enregistrer' : 'Créer l\'infraction'}
                                 </button>
                             </div>
                         </form>
