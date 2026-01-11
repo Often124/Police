@@ -264,16 +264,19 @@ function NouveauRapport() {
 
             let prisonStr = amende.prison;
 
-            if (useRecidivePrison && amende.recidive !== 'Non applicable') {
-                const recidiveMatch = amende.recidive?.match(/(\d+)\s*(minutes?|min)/i);
+            // Si récidive, chercher d'abord les minutes dans le champ recidive
+            if (useRecidivePrison && amende.recidive && amende.recidive !== 'Non applicable') {
+                const recidiveMatch = amende.recidive.match(/(\d+)\s*(minutes?|min)/i);
                 if (recidiveMatch) {
                     totalMinutes += parseInt(recidiveMatch[1]);
                     return;
                 }
             }
 
-            if (prisonStr && prisonStr !== 'Aucune' && prisonStr !== '///') {
-                const match = prisonStr.match(/(\d+)\s*(minutes?|min)/i);
+            // Parser la peine de prison normale
+            if (prisonStr && prisonStr !== 'Aucune' && prisonStr !== '///' && prisonStr.toLowerCase() !== 'aucune') {
+                // Essayer plusieurs formats: "12 minutes", "12minutes", "12 min", "12min", ou juste un nombre
+                const match = prisonStr.match(/(\d+)\s*(minutes?|min)?/i);
                 if (match) {
                     totalMinutes += parseInt(match[1]);
                 }
