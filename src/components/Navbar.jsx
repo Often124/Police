@@ -31,6 +31,9 @@ function Navbar() {
                     <Link to="/nouveau-rapport" className={`navbar-link ${isActive('/nouveau-rapport') ? 'active' : ''}`}>
                         ➕ Nouveau
                     </Link>
+                    <Link to="/casiers" className={`navbar-link ${isActive('/casiers') ? 'active' : ''}`}>
+                        📁 Casiers
+                    </Link>
                     {user?.role === 'admin' && (
                         <>
                             <Link to="/admin" className={`navbar-link ${isActive('/admin') ? 'active' : ''}`}>

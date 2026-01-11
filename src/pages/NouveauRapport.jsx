@@ -10,6 +10,13 @@ function NouveauRapport() {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
 
+    // Citoyen selection
+    const [citoyenSearch, setCitoyenSearch] = useState('');
+    const [citoyenResults, setCitoyenResults] = useState([]);
+    const [selectedCitoyen, setSelectedCitoyen] = useState(null);
+    const [showCreateCitoyen, setShowCreateCitoyen] = useState(false);
+    const [searchingCitoyen, setSearchingCitoyen] = useState(false);
+
     const [formData, setFormData] = useState({
         citoyen_nom: '',
         citoyen_prenom: '',
@@ -18,60 +25,156 @@ function NouveauRapport() {
         description: ''
     });
 
+    const [newCitoyenData, setNewCitoyenData] = useState({
+        nom: '',
+        prenom: '',
+        date_naissance: '',
+        telephone: '',
+        adresse: ''
+    });
+
     const [selectedAmendes, setSelectedAmendes] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [searchAmende, setSearchAmende] = useState('');
 
     // Récidive detection
     const [previousInfractionIds, setPreviousInfractionIds] = useState([]);
-    const [checkingRecidive, setCheckingRecidive] = useState(false);
     const [recidiveInfo, setRecidiveInfo] = useState(null);
 
     useEffect(() => {
         fetchAmendes();
     }, []);
 
-    // Check recidive when citizen name changes
-    const checkRecidive = useCallback(async (nom, prenom) => {
-        if (!nom || !prenom || nom.length < 2 || prenom.length < 2) {
+    // Search citoyens
+    const searchCitoyens = useCallback(async (query) => {
+        if (!query || query.length < 2) {
+            setCitoyenResults([]);
+            return;
+        }
+
+        const token = localStorage.getItem('token');
+        setSearchingCitoyen(true);
+
+        try {
+            const response = await fetch(`/api/citoyens/search/${encodeURIComponent(query)}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setCitoyenResults(data);
+            }
+        } catch (error) {
+            console.error('Erreur recherche citoyens:', error);
+        }
+
+        setSearchingCitoyen(false);
+    }, []);
+
+    // Debounced citoyen search
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            searchCitoyens(citoyenSearch);
+        }, 300);
+
+        return () => clearTimeout(timeoutId);
+    }, [citoyenSearch, searchCitoyens]);
+
+    // Check recidive when citoyen is selected
+    const checkRecidive = useCallback(async (citoyenId) => {
+        if (!citoyenId) {
             setPreviousInfractionIds([]);
             setRecidiveInfo(null);
             return;
         }
 
         const token = localStorage.getItem('token');
-        setCheckingRecidive(true);
 
         try {
-            const response = await fetch(`/api/rapports/recidive/${encodeURIComponent(nom)}/${encodeURIComponent(prenom)}`, {
+            const response = await fetch(`/api/citoyens/${citoyenId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
             if (response.ok) {
                 const data = await response.json();
-                setPreviousInfractionIds(data.previousInfractionIds || []);
-                setRecidiveInfo(data);
+                const infractions = data.rapports
+                    ?.filter(r => r.amende_id)
+                    .map(r => r.amende_id) || [];
+                setPreviousInfractionIds([...new Set(infractions)]);
+                setRecidiveInfo({
+                    isRecidiviste: data.stats?.totalRapports > 0,
+                    totalPreviousReports: data.stats?.totalRapports || 0
+                });
 
-                // Auto-enable recidive if citizen has previous infractions
-                if (data.isRecidiviste) {
+                if (data.stats?.totalRapports > 0) {
                     setFormData(prev => ({ ...prev, est_recidive: true }));
                 }
             }
         } catch (error) {
             console.error('Erreur vérification récidive:', error);
         }
-
-        setCheckingRecidive(false);
     }, []);
 
-    // Debounced recidive check
-    useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            checkRecidive(formData.citoyen_nom, formData.citoyen_prenom);
-        }, 500);
+    const selectCitoyen = (citoyen) => {
+        setSelectedCitoyen(citoyen);
+        setFormData(prev => ({
+            ...prev,
+            citoyen_nom: citoyen.nom,
+            citoyen_prenom: citoyen.prenom
+        }));
+        setCitoyenSearch('');
+        setCitoyenResults([]);
+        checkRecidive(citoyen.id);
+    };
 
-        return () => clearTimeout(timeoutId);
-    }, [formData.citoyen_nom, formData.citoyen_prenom, checkRecidive]);
+    const clearCitoyen = () => {
+        setSelectedCitoyen(null);
+        setFormData(prev => ({
+            ...prev,
+            citoyen_nom: '',
+            citoyen_prenom: ''
+        }));
+        setPreviousInfractionIds([]);
+        setRecidiveInfo(null);
+    };
+
+    const createCitoyen = async () => {
+        if (!newCitoyenData.nom || !newCitoyenData.prenom) {
+            alert('Nom et prénom requis');
+            return;
+        }
+
+        const token = localStorage.getItem('token');
+
+        try {
+            const response = await fetch('/api/citoyens', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(newCitoyenData)
+            });
+
+            if (response.ok) {
+                const citoyen = await response.json();
+                selectCitoyen(citoyen);
+                setShowCreateCitoyen(false);
+                setNewCitoyenData({
+                    nom: '',
+                    prenom: '',
+                    date_naissance: '',
+                    telephone: '',
+                    adresse: ''
+                });
+            } else {
+                const data = await response.json();
+                alert(data.error || 'Erreur lors de la création');
+            }
+        } catch (error) {
+            console.error('Erreur création citoyen:', error);
+        }
+    };
 
     const fetchAmendes = async () => {
         const token = localStorage.getItem('token');
@@ -125,12 +228,10 @@ function NouveauRapport() {
         setSelectedAmendes(prev => prev.filter(a => a.id !== amendeId));
     };
 
-    // Check if infraction is a recidive for this citizen
     const isRecidiveInfraction = (amendeId) => {
         return previousInfractionIds.includes(amendeId);
     };
 
-    // Calcul du montant total
     const calculateTotal = () => {
         let total = 0;
         selectedAmendes.forEach(amende => {
@@ -142,38 +243,32 @@ function NouveauRapport() {
         return total;
     };
 
-    // Calcul du total des points de permis
     const calculateTotalPoints = () => {
         let total = 0;
         selectedAmendes.forEach(amende => {
-            if (amende.retrait_points && amende.retrait_points !== 'Aucun' && amende.retrait_points !== '///' && amende.retrait_points !== 'supression du permis') {
+            if (amende.retrait_points && amende.retrait_points !== 'Aucun' && amende.retrait_points !== '///' && !amende.retrait_points.toLowerCase().includes('suppr')) {
                 const points = parseInt(amende.retrait_points.replace(/[^0-9]/g, '') || '0');
                 total += points;
             }
         });
         const suppressionPermis = selectedAmendes.some(a =>
-            a.retrait_points?.toLowerCase().includes('supression') ||
-            a.retrait_points?.toLowerCase().includes('suppression')
+            a.retrait_points?.toLowerCase().includes('suppr')
         );
         return { total, suppressionPermis };
     };
 
-    // Calcul du total de la peine de prison (avec récidive automatique)
     const calculateTotalPrison = () => {
         let totalMinutes = 0;
         selectedAmendes.forEach(amende => {
-            // Use recidive prison time if this specific infraction was committed before by this citizen
             const useRecidivePrison = formData.est_recidive || isRecidiveInfraction(amende.id);
 
             let prisonStr = amende.prison;
 
-            // If recidive, try to extract prison from recidive field
             if (useRecidivePrison && amende.recidive !== 'Non applicable') {
-                // Check if recidive field contains prison time
                 const recidiveMatch = amende.recidive?.match(/(\d+)\s*(minutes?|min)/i);
                 if (recidiveMatch) {
                     totalMinutes += parseInt(recidiveMatch[1]);
-                    return; // Skip normal prison extraction
+                    return;
                 }
             }
 
@@ -227,6 +322,7 @@ function NouveauRapport() {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
+                    citoyen_id: selectedCitoyen?.id || null,
                     citoyen_nom: formData.citoyen_nom,
                     citoyen_prenom: formData.citoyen_prenom,
                     amende_id: selectedAmendes.length > 0 ? selectedAmendes[0].id : null,
@@ -306,37 +402,103 @@ function NouveauRapport() {
                     )}
 
                     <div className="form-card">
-                        {/* Informations du citoyen */}
+                        {/* Sélection du citoyen */}
                         <div className="form-section">
-                            <h3 className="form-section-title">👤 Informations du citoyen</h3>
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label className="form-label" htmlFor="citoyen_prenom">Prénom *</label>
-                                    <input
-                                        id="citoyen_prenom"
-                                        name="citoyen_prenom"
-                                        type="text"
-                                        className="form-input"
-                                        placeholder="Prénom du citoyen"
-                                        value={formData.citoyen_prenom}
-                                        onChange={handleChange}
-                                        required
-                                    />
+                            <h3 className="form-section-title">👤 Citoyen interpellé</h3>
+
+                            {selectedCitoyen ? (
+                                <div style={{
+                                    padding: '1rem',
+                                    background: 'var(--bg-elevated)',
+                                    borderRadius: 'var(--radius-md)',
+                                    border: '1px solid var(--primary)',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center'
+                                }}>
+                                    <div>
+                                        <strong style={{ fontSize: '1.1rem' }}>
+                                            {selectedCitoyen.prenom} {selectedCitoyen.nom}
+                                        </strong>
+                                        {selectedCitoyen.date_naissance && (
+                                            <span style={{ marginLeft: '1rem', color: 'var(--text-muted)' }}>
+                                                Né(e) le {selectedCitoyen.date_naissance}
+                                            </span>
+                                        )}
+                                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                            ID: #{selectedCitoyen.id}
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="btn btn-outline"
+                                        onClick={clearCitoyen}
+                                    >
+                                        Changer
+                                    </button>
                                 </div>
-                                <div className="form-group">
-                                    <label className="form-label" htmlFor="citoyen_nom">Nom *</label>
-                                    <input
-                                        id="citoyen_nom"
-                                        name="citoyen_nom"
-                                        type="text"
-                                        className="form-input"
-                                        placeholder="Nom du citoyen"
-                                        value={formData.citoyen_nom}
-                                        onChange={handleChange}
-                                        required
-                                    />
+                            ) : (
+                                <div>
+                                    <div style={{ position: 'relative' }}>
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            placeholder="🔍 Rechercher un citoyen existant..."
+                                            value={citoyenSearch}
+                                            onChange={(e) => setCitoyenSearch(e.target.value)}
+                                        />
+                                        {searchingCitoyen && (
+                                            <small style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }}>
+                                                Recherche...
+                                            </small>
+                                        )}
+                                    </div>
+
+                                    {/* Résultats de recherche */}
+                                    {citoyenResults.length > 0 && (
+                                        <div style={{
+                                            marginTop: '0.5rem',
+                                            border: '1px solid var(--border-color)',
+                                            borderRadius: 'var(--radius-md)',
+                                            maxHeight: '200px',
+                                            overflowY: 'auto'
+                                        }}>
+                                            {citoyenResults.map(citoyen => (
+                                                <div
+                                                    key={citoyen.id}
+                                                    onClick={() => selectCitoyen(citoyen)}
+                                                    style={{
+                                                        padding: '0.75rem 1rem',
+                                                        cursor: 'pointer',
+                                                        borderBottom: '1px solid var(--border-color)',
+                                                        transition: 'background 0.2s'
+                                                    }}
+                                                    onMouseEnter={(e) => e.target.style.background = 'var(--bg-elevated)'}
+                                                    onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                                                >
+                                                    <strong>{citoyen.prenom} {citoyen.nom}</strong>
+                                                    {citoyen.date_naissance && (
+                                                        <span style={{ marginLeft: '1rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                                                            {citoyen.date_naissance}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                        <span style={{ color: 'var(--text-muted)' }}>ou</span>
+                                        <button
+                                            type="button"
+                                            className="btn btn-success"
+                                            onClick={() => setShowCreateCitoyen(true)}
+                                        >
+                                            ➕ Créer un nouveau citoyen
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                             {/* Recidive alert */}
                             {recidiveInfo && recidiveInfo.isRecidiviste && (
@@ -349,7 +511,6 @@ function NouveauRapport() {
                                     color: '#e74c3c'
                                 }}>
                                     ⚠️ <strong>RÉCIDIVISTE DÉTECTÉ !</strong> Ce citoyen a déjà {recidiveInfo.totalPreviousReports} rapport(s) enregistré(s).
-                                    {checkingRecidive && ' Vérification...'}
                                 </div>
                             )}
                         </div>
@@ -555,13 +716,87 @@ function NouveauRapport() {
                         <button
                             type="submit"
                             className="btn btn-primary btn-lg"
-                            disabled={submitting || !formData.citoyen_nom || !formData.citoyen_prenom}
+                            disabled={submitting || (!selectedCitoyen && (!formData.citoyen_nom || !formData.citoyen_prenom))}
                         >
                             {submitting ? 'Création...' : `✓ Créer le rapport${selectedAmendes.length > 0 ? ` (${calculateTotal()}€)` : ''}`}
                         </button>
                     </div>
                 </form>
             </div>
+
+            {/* Modal création citoyen */}
+            {showCreateCitoyen && (
+                <div className="modal-overlay" onClick={() => setShowCreateCitoyen(false)}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>➕ Nouveau citoyen</h2>
+                            <button className="modal-close" onClick={() => setShowCreateCitoyen(false)}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Prénom *</label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        value={newCitoyenData.prenom}
+                                        onChange={(e) => setNewCitoyenData({ ...newCitoyenData, prenom: e.target.value })}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Nom *</label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        value={newCitoyenData.nom}
+                                        onChange={(e) => setNewCitoyenData({ ...newCitoyenData, nom: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Date de naissance</label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        placeholder="Ex: 15/03/1990"
+                                        value={newCitoyenData.date_naissance}
+                                        onChange={(e) => setNewCitoyenData({ ...newCitoyenData, date_naissance: e.target.value })}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Téléphone</label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        placeholder="Ex: 06 12 34 56 78"
+                                        value={newCitoyenData.telephone}
+                                        onChange={(e) => setNewCitoyenData({ ...newCitoyenData, telephone: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Adresse</label>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    placeholder="Adresse du citoyen"
+                                    value={newCitoyenData.adresse}
+                                    onChange={(e) => setNewCitoyenData({ ...newCitoyenData, adresse: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button type="button" className="btn btn-outline" onClick={() => setShowCreateCitoyen(false)}>
+                                Annuler
+                            </button>
+                            <button type="button" className="btn btn-primary" onClick={createCitoyen}>
+                                Créer et sélectionner
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </main>
     );
 }

@@ -8,6 +8,7 @@ import Rapports from './pages/Rapports';
 import NouveauRapport from './pages/NouveauRapport';
 import Admin from './pages/Admin';
 import Logs from './pages/Logs';
+import Casiers from './pages/Casiers';
 
 // Auth Context
 export const AuthContext = createContext(null);
@@ -144,6 +145,11 @@ function App() {
                         <Route path="/logs" element={
                             <ProtectedRoute adminOnly>
                                 <Logs />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/casiers" element={
+                            <ProtectedRoute>
+                                <Casiers />
                             </ProtectedRoute>
                         } />
                         <Route path="*" element={<Navigate to="/" />} />

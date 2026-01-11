@@ -70,12 +70,13 @@ router.get('/', authMiddleware, async (req, res) => {
 // Create rapport
 router.post('/', authMiddleware, async (req, res) => {
     try {
-        const { citoyen_nom, citoyen_prenom, amende_id, montant_applique, description, lieu, est_recidive } = req.body;
+        const { citoyen_id, citoyen_nom, citoyen_prenom, amende_id, montant_applique, description, lieu, est_recidive } = req.body;
 
         const { data, error } = await supabase
             .from('rapports')
             .insert([{
                 agent_id: req.user.id,
+                citoyen_id: citoyen_id || null,
                 citoyen_nom,
                 citoyen_prenom,
                 amende_id: amende_id || null,
