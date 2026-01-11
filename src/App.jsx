@@ -9,6 +9,8 @@ import NouveauRapport from './pages/NouveauRapport';
 import Admin from './pages/Admin';
 import Logs from './pages/Logs';
 import Casiers from './pages/Casiers';
+import Siv from './pages/Siv';
+import Wanted from './pages/Wanted';
 
 // Auth Context
 export const AuthContext = createContext(null);
@@ -150,6 +152,16 @@ function App() {
                         <Route path="/casiers" element={
                             <ProtectedRoute>
                                 <Casiers />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/siv" element={
+                            <ProtectedRoute>
+                                <Siv />
+                            </ProtectedRoute>
+                        } />
+                        <Route path="/wanted" element={
+                            <ProtectedRoute>
+                                <Wanted />
                             </ProtectedRoute>
                         } />
                         <Route path="*" element={<Navigate to="/" />} />

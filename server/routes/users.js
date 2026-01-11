@@ -37,6 +37,48 @@ router.get('/', authMiddleware, adminMiddleware, async (req, res) => {
     }
 });
 
+// Update user info
+router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+        const userId = parseInt(req.params.id);
+        const { nom, prenom, matricule, grade, role } = req.body;
+
+        const { error } = await supabase
+            .from('users')
+            .update({ nom, prenom, matricule, grade, role })
+            .eq('id', userId);
+
+        if (error) throw error;
+        res.json({ message: 'Utilisateur mis à jour' });
+    } catch (error) {
+        console.error('Erreur update user:', error);
+        res.status(500).json({ error: 'Erreur serveur' });
+    }
+});
+
+// Update password
+router.patch('/:id/password', authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+        const userId = parseInt(req.params.id);
+        const { password } = req.body;
+
+        if (!password || password.length < 6) {
+            return res.status(400).json({ error: 'Mot de passe trop court' });
+        }
+
+        const { error } = await supabase
+            .from('users')
+            .update({ password }) // In a real app, hash this!
+            .eq('id', userId);
+
+        if (error) throw error;
+        res.json({ message: 'Mot de passe mis à jour' });
+    } catch (error) {
+        console.error('Erreur update password:', error);
+        res.status(500).json({ error: 'Erreur serveur' });
+    }
+});
+
 // Delete user
 router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
     try {

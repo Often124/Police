@@ -9,6 +9,8 @@ const rapportsRoutes = require('./routes/rapports');
 const usersRoutes = require('./routes/users');
 const { router: logsRoutes } = require('./routes/logs');
 const citoyensRoutes = require('./routes/citoyens');
+const sivRoutes = require('./routes/siv');
+const wantedRoutes = require('./routes/wanted');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -24,6 +26,8 @@ app.use('/api/rapports', rapportsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/logs', logsRoutes);
 app.use('/api/citoyens', citoyensRoutes);
+app.use('/api/siv', sivRoutes);
+app.use('/api/wanted', wantedRoutes);
 
 // Health check Supabase
 app.get('/api/health', async (req, res) => {

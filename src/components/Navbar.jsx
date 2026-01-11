@@ -34,6 +34,12 @@ function Navbar() {
                     <Link to="/casiers" className={`navbar-link ${isActive('/casiers') ? 'active' : ''}`}>
                         📁 Casiers
                     </Link>
+                    <Link to="/siv" className={`navbar-link ${isActive('/siv') ? 'active' : ''}`}>
+                        🚗 SIV
+                    </Link>
+                    <Link to="/wanted" className={`navbar-link ${isActive('/wanted') ? 'active' : ''}`}>
+                        ☠️ Recherche
+                    </Link>
                     {user?.role === 'admin' && (
                         <>
                             <Link to="/admin" className={`navbar-link ${isActive('/admin') ? 'active' : ''}`}>
