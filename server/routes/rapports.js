@@ -1,6 +1,6 @@
 const express = require('express');
 const supabase = require('../db/supabase');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -12,13 +12,11 @@ router.get('/stats/overview', authMiddleware, async (req, res) => {
         const { count: rapportsPayes } = await supabase.from('rapports').select('*', { count: 'exact', head: true }).eq('statut', 'Payé');
         const { count: mesRapports } = await supabase.from('rapports').select('*', { count: 'exact', head: true }).eq('agent_id', req.user.id);
 
-        // Pour le mois, c'est plus complexe en filtre JS simple, on simplifie pour l'instant
-
         res.json({
             totalRapports: totalRapports || 0,
             rapportsEnCours: rapportsEnCours || 0,
             rapportsPayes: rapportsPayes || 0,
-            rapportsMois: 0, // Temporaire
+            rapportsMois: 0,
             mesRapports: mesRapports || 0
         });
     } catch (error) {
@@ -53,7 +51,6 @@ router.get('/', authMiddleware, async (req, res) => {
 
         if (error) throw error;
 
-        // Transformer les données pour correspondre au format attendu par le frontend (aplatir les jointures)
         const formattedRapports = rapports.map(r => ({
             ...r,
             agent_nom: r.users?.nom,
@@ -116,6 +113,23 @@ router.patch('/:id/statut', authMiddleware, async (req, res) => {
         res.json({ message: 'Statut mis à jour' });
     } catch (error) {
         console.error('Erreur update statut:', error);
+        res.status(500).json({ error: 'Erreur serveur' });
+    }
+});
+
+// Delete rapport (admin only)
+router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+        const { error } = await supabase
+            .from('rapports')
+            .delete()
+            .eq('id', parseInt(req.params.id));
+
+        if (error) throw error;
+
+        res.json({ message: 'Rapport supprimé' });
+    } catch (error) {
+        console.error('Erreur delete rapport:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 });

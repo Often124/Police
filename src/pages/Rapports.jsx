@@ -63,6 +63,27 @@ function Rapports() {
         }
     };
 
+    const deleteRapport = async (id) => {
+        if (!confirm('Êtes-vous sûr de vouloir supprimer ce rapport ?')) return;
+
+        const token = localStorage.getItem('token');
+        try {
+            const response = await fetch(`/api/rapports/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                setRapports(rapports.filter(r => r.id !== id));
+            } else {
+                const data = await response.json();
+                alert(data.error || 'Erreur lors de la suppression');
+            }
+        } catch (error) {
+            console.error('Erreur suppression:', error);
+        }
+    };
+
     const getStatusBadge = (statut) => {
         const badges = {
             'En cours': 'badge-warning',
@@ -173,24 +194,36 @@ function Rapports() {
                                         </span>
                                     </td>
                                     <td>
-                                        {(rapport.agent_id === user.id || user.role === 'admin') && rapport.statut === 'En cours' && (
-                                            <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                        <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                            {(rapport.agent_id === user.id || user.role === 'admin') && rapport.statut === 'En cours' && (
+                                                <>
+                                                    <button
+                                                        className="btn btn-sm btn-success"
+                                                        onClick={() => updateStatut(rapport.id, 'Payé')}
+                                                        title="Marquer comme payé"
+                                                    >
+                                                        ✓
+                                                    </button>
+                                                    <button
+                                                        className="btn btn-sm btn-danger"
+                                                        onClick={() => updateStatut(rapport.id, 'Rejeté')}
+                                                        title="Rejeter"
+                                                    >
+                                                        ✗
+                                                    </button>
+                                                </>
+                                            )}
+                                            {user.role === 'admin' && (
                                                 <button
-                                                    className="btn btn-sm btn-success"
-                                                    onClick={() => updateStatut(rapport.id, 'Payé')}
-                                                    title="Marquer comme payé"
+                                                    className="btn btn-sm"
+                                                    onClick={() => deleteRapport(rapport.id)}
+                                                    title="Supprimer le rapport"
+                                                    style={{ background: '#555', padding: '4px 8px' }}
                                                 >
-                                                    ✓
+                                                    🗑️
                                                 </button>
-                                                <button
-                                                    className="btn btn-sm btn-danger"
-                                                    onClick={() => updateStatut(rapport.id, 'Rejeté')}
-                                                    title="Rejeter"
-                                                >
-                                                    ✗
-                                                </button>
-                                            </div>
-                                        )}
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
