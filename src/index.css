@@ -343,23 +343,35 @@ body {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  width: 40px;
-  height: 40px;
-  background: transparent;
-  border: none;
+  width: 44px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
   cursor: pointer;
-  z-index: 1001;
-  padding: 8px;
+  z-index: 1100;
+  padding: 10px;
   gap: 5px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.navbar-toggle:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.navbar-toggle:active {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .navbar-toggle span {
   display: block;
-  width: 24px;
+  width: 22px;
   height: 2px;
   background: var(--text-primary);
   border-radius: 2px;
   transition: all 0.3s ease;
+  pointer-events: none;
 }
 
 .navbar-toggle.open span:nth-child(1) {
