@@ -63,6 +63,25 @@ router.post('/login', async (req, res) => {
     }
 });
 
+// Verify Token (Get User)
+router.get('/me', authMiddleware, (req, res) => {
+    try {
+        // req.user is populated by authMiddleware
+        res.json({
+            id: req.user.id,
+            username: req.user.username,
+            nom: req.user.nom,
+            prenom: req.user.prenom,
+            matricule: req.user.matricule,
+            grade: req.user.grade,
+            role: req.user.role
+        });
+    } catch (error) {
+        console.error('Erreur /me:', error);
+        res.status(500).json({ error: 'Erreur serveur' });
+    }
+});
+
 // Register (admin only)
 router.post('/register', authMiddleware, async (req, res) => {
     try {
