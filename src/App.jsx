@@ -117,7 +117,12 @@ function App() {
                     {user && <Navbar />}
                     <Routes>
                         <Route path="/login" element={
-                            user ? <Navigate to="/" /> : <Login />
+                            loading ? (
+                                <div className="loading-container">
+                                    <div className="spinner"></div>
+                                    <p>Chargement...</p>
+                                </div>
+                            ) : user ? <Navigate to="/" /> : <Login />
                         } />
                         <Route path="/" element={
                             <ProtectedRoute>
