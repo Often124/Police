@@ -195,7 +195,7 @@ function Rapports() {
                                     </td>
                                     <td>
                                         <div style={{ display: 'flex', gap: '0.25rem' }}>
-                                            {(rapport.agent_id === user.id || user.role === 'admin') && rapport.statut === 'En cours' && (
+                                            {rapport.statut === 'En cours' && (
                                                 <>
                                                     <button
                                                         className="btn btn-sm btn-success"

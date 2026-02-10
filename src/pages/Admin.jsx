@@ -26,7 +26,8 @@ function Admin() {
         'Lieutenant',
         'Capitaine',
         'Commandant',
-        'Commissaire'
+        'Commissaire',
+        'IGPN'
     ];
 
     useEffect(() => {
