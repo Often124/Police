@@ -62,16 +62,26 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     try {
         const id = parseInt(req.params.id);
 
+        if (isNaN(id)) {
+            return res.status(400).json({ error: 'ID invalide' });
+        }
+
+        console.log(`[Wanted] Deleting notice ID: ${id} by user ${req.user.id}`);
+
         const { error } = await supabase
             .from('wanted')
             .delete()
             .eq('id', id);
 
-        if (error) throw error;
+        if (error) {
+            console.error('Supabase error deleting wanted:', error);
+            throw error;
+        }
+
         res.json({ message: 'Avis de recherche supprimé' });
     } catch (error) {
         console.error('Erreur delete wanted:', error);
-        res.status(500).json({ error: 'Erreur serveur' });
+        res.status(500).json({ error: 'Erreur serveur lors de la suppression' });
     }
 });
 

@@ -16,7 +16,7 @@ function Navbar() {
             <div className="navbar-container">
                 {/* Logo / Brand */}
                 <Link to="/" className="navbar-brand" onClick={closeMenu}>
-                    <div className="navbar-logo">🚔</div>
+                    <div className="navbar-logo"></div>
                     <div className="navbar-brand-text">
                         <div className="navbar-title">Police Nationale</div>
                         <div className="navbar-subtitle">Nova-RP</div>
@@ -37,34 +37,34 @@ function Navbar() {
                 {/* Navigation Menu */}
                 <div className={`navbar-menu ${menuOpen ? 'open' : ''}`}>
                     <Link to="/" className={`navbar-link ${isActive('/') ? 'active' : ''}`} onClick={closeMenu}>
-                        📊 Accueil
+                        Accueil
                     </Link>
                     <Link to="/amendes" className={`navbar-link ${isActive('/amendes') ? 'active' : ''}`} onClick={closeMenu}>
-                        📋 Amendes
+                        Amendes
                     </Link>
                     <Link to="/rapports" className={`navbar-link ${isActive('/rapports') ? 'active' : ''}`} onClick={closeMenu}>
-                        📝 Rapports
+                        Rapports
                     </Link>
                     <Link to="/nouveau-rapport" className={`navbar-link ${isActive('/nouveau-rapport') ? 'active' : ''}`} onClick={closeMenu}>
-                        ➕ Nouveau
+                        Nouveau
                     </Link>
                     <Link to="/casiers" className={`navbar-link ${isActive('/casiers') ? 'active' : ''}`} onClick={closeMenu}>
-                        📁 Casiers
+                        Casiers
                     </Link>
                     <Link to="/siv" className={`navbar-link ${isActive('/siv') ? 'active' : ''}`} onClick={closeMenu}>
-                        🚗 SIV
+                        SIV
                     </Link>
                     <Link to="/wanted" className={`navbar-link ${isActive('/wanted') ? 'active' : ''}`} onClick={closeMenu}>
-                        ☠️ Avis
+                        Avis
                     </Link>
                     {user?.role === 'admin' && (
                         <>
                             <div className="navbar-divider"></div>
                             <Link to="/admin" className={`navbar-link ${isActive('/admin') ? 'active' : ''}`} onClick={closeMenu}>
-                                ⚙️ Admin
+                                Admin
                             </Link>
                             <Link to="/logs" className={`navbar-link ${isActive('/logs') ? 'active' : ''}`} onClick={closeMenu}>
-                                📜 Logs
+                                Logs
                             </Link>
                         </>
                     )}
@@ -76,7 +76,7 @@ function Navbar() {
                             <div className="navbar-user-role">{user?.grade} • {user?.matricule}</div>
                         </div>
                         <button className="navbar-logout" onClick={() => { logout(); closeMenu(); }}>
-                            🚪 Déconnexion
+                            Déconnexion
                         </button>
                     </div>
                 </div>

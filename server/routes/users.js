@@ -87,6 +87,40 @@ router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
             return res.status(400).json({ error: 'Impossible de supprimer son propre compte' });
         }
 
+        // 1. Unlink from reports (rapports)
+        const { error: reportsError } = await supabase
+            .from('rapports')
+            .update({ agent_id: null })
+            .eq('agent_id', userId);
+
+        if (reportsError) {
+            console.error('Error unlinking reports:', reportsError);
+            throw reportsError;
+        }
+
+        // 2. Unlink from logs
+        const { error: logsError } = await supabase
+            .from('logs')
+            .update({ user_id: null })
+            .eq('user_id', userId);
+
+        if (logsError) {
+            console.error('Error unlinking logs:', logsError);
+            throw logsError;
+        }
+
+        // 3. Unlink from wanted notices (wanted)
+        const { error: wantedError } = await supabase
+            .from('wanted')
+            .update({ added_by: null })
+            .eq('added_by', userId);
+
+        if (wantedError) {
+            console.error('Error unlinking wanted notices:', wantedError);
+            throw wantedError;
+        }
+
+        // 4. Delete the user
         const { error } = await supabase.from('users').delete().eq('id', userId);
 
         if (error) throw error;

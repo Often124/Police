@@ -37,13 +37,20 @@ function Wanted() {
 
         const token = localStorage.getItem('token');
         try {
-            await fetch(`/api/wanted/${id}`, {
+            const response = await fetch(`/api/wanted/${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            fetchWanted();
+
+            if (response.ok) {
+                fetchWanted();
+            } else {
+                const errorData = await response.json();
+                alert(`Erreur: ${errorData.error || 'Impossible de supprimer'}`);
+            }
         } catch (error) {
-            alert('Erreur lors de la suppression');
+            console.error('Error deleting wanted:', error);
+            alert('Erreur réseau lors de la suppression');
         }
     };
 

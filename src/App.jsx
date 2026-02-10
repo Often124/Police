@@ -125,6 +125,9 @@ function App() {
                             ) : user ? <Navigate to="/" /> : <Login />
                         } />
                         <Route path="/" element={
+                            user ? <Navigate to="/dashboard" /> : <Navigate to="/login" />
+                        } />
+                        <Route path="/dashboard" element={
                             <ProtectedRoute>
                                 <Dashboard />
                             </ProtectedRoute>
